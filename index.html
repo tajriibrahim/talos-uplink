@@ -124,7 +124,7 @@
 
       async function processIntent(genAI, scriptUrl, text) {
           // Switching to the "Classic" Stable Model
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         // Contextual Awareness
         const now = new Date();
         const prompt = `
