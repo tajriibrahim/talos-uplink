@@ -3,55 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S.</title>
-    
+    <title>T.A.L.O.S. V2</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     
     <style>
-        /* CORE STYLES */
+        /* STARK TECH AESTHETIC */
         body { 
             background-color: #0d0d0d; color: #ff9900; 
             font-family: 'Courier New', monospace; 
-            display: flex; flex-direction: column; align-items: center; 
-            height: 100vh; margin: 0; overflow: hidden; text-transform: uppercase;
+            display: flex; flex-direction: column; 
+            height: 100vh; margin: 0; overflow: hidden; 
+            text-transform: uppercase;
         }
 
-        /* HEADER */
+        /* TOP NAVIGATION */
         .nav-bar {
             display: flex; width: 100%; justify-content: space-around;
-            padding: 20px 0; border-bottom: 1px solid #333;
-            background: #000; z-index: 10;
+            padding: 15px 0; background: #000; border-bottom: 1px solid #333;
+            flex-shrink: 0;
         }
         .nav-btn {
-            background: none; border: 1px solid #444; color: #666;
-            padding: 10px 20px; font-family: inherit; font-weight: bold;
-            cursor: pointer;
+            background: none; border: 1px solid #333; color: #555;
+            padding: 8px 25px; font-family: inherit; font-weight: bold;
+            font-size: 0.9rem; cursor: pointer; transition: 0.2s;
         }
-        .nav-btn.active { border-color: #ff9900; color: #ff9900; box-shadow: 0 0 10px rgba(255,153,0,0.3); }
+        .nav-btn.active { 
+            border-color: #ff9900; color: #ff9900; 
+            box-shadow: 0 0 10px rgba(255,153,0,0.2); 
+            background: rgba(255,153,0,0.05);
+        }
 
-        /* VIEWS */
-        .view-section { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+        /* MAIN VIEW AREA */
+        .view-section { 
+            display: none; flex-grow: 1; width: 100%; 
+            flex-direction: column; align-items: center; 
+            position: relative;
+        }
         .view-section.active { display: flex; }
 
-        /* INPUT VIEW */
+        /* --- INPUT VIEW (REC BUTTON) --- */
+        /* Center the button vertically */
+        .input-container {
+            flex-grow: 1; display: flex; align-items: center; justify-content: center; width: 100%;
+        }
         .record-btn {
             width: 140px; height: 140px; border-radius: 50%; background: transparent;
             border: 4px solid #ff9900; color: #ff9900; font-size: 1.5rem; font-weight: bold;
-            cursor: pointer; box-shadow: 0 0 20px #ff9900; margin-bottom: 20px;
+            cursor: pointer; box-shadow: 0 0 20px #ff9900; transition: 0.2s;
         }
-        .record-btn:active { background: #ff9900; color: #000; }
-        .status-box { font-size: 1.2rem; margin-bottom: 20px; font-weight: bold; }
+        .record-btn:active, .record-btn.active { 
+            background: #ff9900; color: #000; transform: scale(0.95);
+        }
 
-        /* DATA VIEW */
+        /* LOG/STATUS BOX AT BOTTOM */
+        .log-terminal { 
+            width: 100%; height: 180px; 
+            background: #000; border-top: 1px dashed #444;
+            padding: 15px; box-sizing: border-box;
+            color: #888; font-size: 0.8rem; 
+            overflow-y: auto; text-align: left; line-height: 1.5;
+            flex-shrink: 0; /* Prevents shrinking */
+        }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+        .log-time { color: #444; font-size: 0.7rem; }
+
+        /* --- DATA VIEW (LIST) --- */
         .data-list {
-            width: 90%; height: 80%; overflow-y: auto; text-align: left; padding: 10px;
+            width: 90%; height: 100%; overflow-y: auto; text-align: left; padding: 20px 0;
         }
-        .entry {
-            border-bottom: 1px solid #333; padding: 10px 0; margin-bottom: 5px;
+        .server-entry {
+            border: 1px solid #333; padding: 10px; margin-bottom: 10px;
+            background: rgba(255,255,255,0.02);
         }
-        .entry-time { color: #666; font-size: 0.7rem; }
-        .entry-item { color: #ff9900; font-size: 0.9rem; margin-top: 2px; }
+        .server-date { color: #555; font-size: 0.75rem; margin-bottom: 5px; }
+        .server-item { color: #ff9900; font-size: 1rem; }
         .loading { text-align: center; color: #444; margin-top: 50px; }
 
     </style>
@@ -59,84 +85,101 @@
 <body>
 
     <div class="nav-bar">
-        <button class="nav-btn active" onclick="switchView('input')">INPUT</button>
+        <button class="nav-btn active" onclick="switchView('input')">COMMAND</button>
         <button class="nav-btn" onclick="switchView('data')">LOGS</button>
     </div>
 
     <div id="view-input" class="view-section active">
-        <div id="status" class="status-box">READY</div>
-        <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
+        
+        <div class="input-container">
+            <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
+        </div>
+
+        <div class="log-terminal" id="localLog">
+            > System Online.<br>
+            > Awaiting Voice Input...
+        </div>
     </div>
 
     <div id="view-data" class="view-section">
-        <div id="dataList" class="data-list"></div>
+        <div id="serverDataList" class="data-list"></div>
     </div>
 
     <script>
+      // --- COMMANDER: PASTE YOUR GOOGLE SCRIPT URL HERE ---
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq2ckVg417ZxYg8uld5OHsNeuhe9ezv03G6lcg8NqCfEpd1hzaVMIi7NPRkUp5DM4-mw/exec";
-      
-      const status = document.getElementById('status');
-      const dataList = document.getElementById('dataList');
+      // ----------------------------------------------------
+
+      const localLog = document.getElementById('localLog');
+      const serverDataList = document.getElementById('serverDataList');
       const recBtn = document.getElementById('recBtn');
 
-      // --- NAVIGATION LOGIC ---
+      function log(msg) {
+        localLog.innerHTML = `<div class="log-entry">${msg}</div>` + localLog.innerHTML;
+      }
+
       function switchView(viewName) {
-        // Toggle Buttons
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         event.target.classList.add('active');
-
-        // Toggle Sections
         document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
         document.getElementById('view-' + viewName).classList.add('active');
-
-        // If Data view, load data
+        
         if(viewName === 'data') fetchLogs();
       }
 
-      // --- DATA RETRIEVAL ---
       async function fetchLogs() {
-        dataList.innerHTML = '<div class="loading">DOWNLOADING TELEMETRY...</div>';
+        serverDataList.innerHTML = '<div class="loading">ESTABLISHING UPLINK...</div>';
         try {
-            // Add timestamp to prevent caching
-            const response = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            // Force fetch to bypass cache
+            const response = await fetch(SCRIPT_URL + "?action=read&t=" + Date.now());
+            
+            if (!response.ok) throw new Error("Server Reject");
+            
             const data = await response.json();
             
+            if (data.length === 0) {
+                 serverDataList.innerHTML = '<div class="loading">DATABASE EMPTY</div>';
+                 return;
+            }
+
             let html = "";
             data.forEach(row => {
                 html += `
-                <div class="entry">
-                    <div class="entry-time">${row.date} | ${row.time}</div>
-                    <div class="entry-item">${row.item}</div>
+                <div class="server-entry">
+                    <div class="server-date">${row.date} | ${row.time}</div>
+                    <div class="server-item">${row.item}</div>
                 </div>`;
             });
-            dataList.innerHTML = html || '<div class="loading">NO DATA FOUND</div>';
+            serverDataList.innerHTML = html;
+
         } catch (e) {
-            dataList.innerHTML = '<div class="loading">CONNECTION ERROR</div>';
+            console.error(e);
+            serverDataList.innerHTML = `<div class="loading">CONNECTION FAIL<br><small>${e.message}</small></div>`;
         }
       }
 
-      // --- VOICE INPUT LOGIC (SAME AS BEFORE) ---
+      // --- VOICE INPUT (MANUAL MODE) ---
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       window.startSequence = function() {
-        if (!SpeechRecognition) { alert("NO MIC SUPPORT"); return; }
+        if (!SpeechRecognition) { log("ERROR: No Mic Support"); return; }
+        
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.continuous = false;
 
         recognition.onstart = () => { 
-            status.innerText = "RECORDING..."; 
             recBtn.classList.add("active");
+            log(">> LISTENING...");
         };
         
         recognition.onend = () => {
             recBtn.classList.remove("active");
-            if (status.innerText === "RECORDING...") status.innerText = "READY";
         };
 
         recognition.onresult = async (event) => {
             const text = event.results[0][0].transcript;
-            status.innerText = "UPLOADING...";
+            log(`Capturing: "${text}"`);
             await sendData(text);
         };
         recognition.start();
@@ -148,15 +191,21 @@
         const timeStr = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
 
         try {
+            log(">> UPLOADING...");
+            
+            // Note: 'no-cors' mode is used for writing. It returns an opaque response.
+            // We assume success if it doesn't throw an error.
             await fetch(SCRIPT_URL, {
-                method: "POST", mode: "no-cors", 
+                method: "POST", 
+                mode: "no-cors", 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ item: text, date: dateStr, time: timeStr })
             });
-            status.innerText = "SECURED";
-            setTimeout(() => { status.innerText = "READY"; }, 2000);
+            
+            log(`>> CONFIRMED: ${timeStr}`);
+            
         } catch (e) {
-            status.innerText = "ERROR";
+            log(">> UPLOAD FAILED");
         }
       }
     </script>
