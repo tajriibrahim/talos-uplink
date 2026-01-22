@@ -2,74 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>T.A.L.O.S. DIRECT UPLINK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T.A.L.O.S. MANUAL DIAGNOSTIC</title>
     <style>
-        /* T.A.L.O.S. VISUAL SYSTEM - MANUAL MODE */
+        /* SAME STYLING AS BEFORE */
         body { 
             background-color: #0d0d0d; 
-            color: #ff9900; /* Amber for Manual/Warning Mode */
-            font-family: 'Courier New', monospace; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            margin: 0; 
-            overflow: hidden;
-            text-transform: uppercase;
-        }
-
-        #status { 
-            font-size: 1.2rem; 
-            margin-bottom: 30px; 
-            border: 1px solid #ff9900; 
-            padding: 10px 20px; 
-            background: rgba(255, 153, 0, 0.1);
-            box-shadow: 0 0 15px rgba(255, 153, 0, 0.4);
-            letter-spacing: 2px;
-            font-weight: bold;
-        }
-
-        .record-btn {
-            width: 140px; 
-            height: 140px; 
-            border-radius: 50%; 
-            background: transparent;
-            border: 4px solid #ff9900; 
             color: #ff9900; 
-            font-size: 1.5rem; 
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 0 20px #ff9900, inset 0 0 10px #ff9900; 
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-family: 'Courier New', monospace; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; margin: 0; overflow: hidden; text-transform: uppercase;
         }
-
-        .record-btn:active, .record-btn.active { 
-            background: #ff9900; 
-            color: #000; 
-            box-shadow: 0 0 50px #ff9900; 
-            transform: scale(0.95);
+        #status { 
+            font-size: 1.2rem; margin-bottom: 30px; border: 1px solid #ff9900; padding: 10px 20px; 
+            background: rgba(255, 153, 0, 0.1); font-weight: bold;
         }
-
+        .record-btn {
+            width: 140px; height: 140px; border-radius: 50%; background: transparent;
+            border: 4px solid #ff9900; color: #ff9900; font-size: 1.5rem; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 20px #ff9900; transition: all 0.2s;
+        }
+        .record-btn:active, .record-btn.active { background: #ff9900; color: #000; }
         .log-box { 
-            margin-top: 40px; 
-            width: 85%;
-            height: 150px;
-            overflow-y: auto;
-            border-top: 1px dashed #444;
-            padding-top: 10px;
-            color: #888; 
-            font-size: 0.85rem; 
-            text-align: left;
-            line-height: 1.5;
+            margin-top: 40px; width: 90%; height: 200px; overflow-y: auto; 
+            border-top: 1px dashed #444; padding-top: 10px; color: #888; font-size: 0.8rem; 
+            text-align: left; line-height: 1.5; white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
 
     <div id="status">MANUAL MODE</div>
-    
     <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
+    
+    <div class="log-box" id="logOutput">
+        > System Initialized.<br>
+        > Waiting for manual trigger...
+    </div>
+
+    <script>
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq2ckVg417ZxYg8uld5OHsNeuhe9ezv03G6lcg8NqCfEpd1hzaVMIi7NPRkUp5DM4-mw/exec";
+      const output = document.getElementById('logOutput');
+      const status = document.getElementById('status');
+      const recBtn = document.getElementById('recBtn');
+
+      function log(msg) {
+        output.innerHTML = `> ${msg}<br>` + output.innerHTML;
+      }
+
+      // --- 1. CHECK IF BROWSER HAS THE CAPABILITY ---
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+          log("CRITICAL ERROR: Speech API not supported in this browser.");
+          status.innerText = "NO SUPPORT";
+      } else {
+          log("Audio Sensors Detected.");
+      }
+
+      window.startSequence = function() {
+        if (!SpeechRecognition) { alert("Browser not supported."); return; }
+
+        log("Attempting to start mic...");
+        status.innerText = "INITIALIZING...";
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false; // Android hates 'true'
+            recognition.interimResults = false;
+
+            // --- 2. LISTEN FOR ERRORS ---
+            recognition.onerror = (event) => {
+                console.error(event.error);
+                status.innerText = "ERROR: " + event.error;
+                log(`MICROPHONE FAIL: ${event.error}`);
+                
+                if (event.error === 'not-allowed') {
+                    log("Check permissions! Is site HTTPS?");
+                }
+            };
+
+            recognition.onstart = () => { 
+                status.innerText = "RECORDING..."; 
+                recBtn.classList.add("active");
+                log("Mic Active. Speak now.");
+            };
+            
+            recognition.onend = () => {
+                recBtn.classList.remove("active");
+                if (status.innerText === "RECORDING...") status.innerText = "STANDBY";
+            };
+
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                status.innerText = "SENDING...";
+                log(`Heard: "${transcript}"`);
+                await sendData(transcript);
+            };
+            
+            recognition.start(); // This is the trigger
+
+        } catch (e) {
+            log("CRASH: " + e.message);
+            status.innerText = "CRASH";
+        }
+      };
+
+      async function sendData(text) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-CA'); 
+        const timeStr = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}); 
+
+        const payload = { item: text, date: dateStr, time: timeStr };
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST", mode: "no-cors", 
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            status.innerText = "DATA SECURED";
+            log(`UPLOAD COMPLETE: ${timeStr}`);
+            setTimeout(() => { status.innerText = "READY"; }, 3000);
+        } catch (error) {
+            status.innerText = "UPLOAD FAIL";
+            log(`Network Error: ${error.message}`);
+        }
+      }
+    </script>
+</body>
+</html>
