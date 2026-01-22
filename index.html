@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>T.A.L.O.S. UPLINK</title>
+    <style>
+        /* T.A.L.O.S. VISUAL SYSTEM - STARK TECH MODE */
+        body { 
+            background-color: #000000; 
+            color: #00f0ff; 
+            font-family: 'Courier New', monospace; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden;
+            text-transform: uppercase;
+        }
+
+        /* HUD ELEMENTS */
+        #status { 
+            font-size: 1.2rem; 
+            margin-bottom: 30px; 
+            border: 1px solid #00f0ff; 
+            padding: 10px 20px; 
+            background: rgba(0, 240, 255, 0.1);
+            box-shadow: 0 0 10px #00f0ff;
+            letter-spacing: 2px;
+        }
+
+        .record-btn {
+            width: 140px; 
+            height: 140px; 
+            border-radius: 50%; 
+            background: transparent;
+            border: 3px solid #ff0055; 
+            color: #ff0055; 
+            font-size: 1.2rem; 
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 20px #ff0055, inset 0 0 20px #ff0055; 
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .record-btn:active, .record-btn.active { 
+            background: #ff0055; 
+            color: #000; 
+            box-shadow: 0 0 50px #ff0055; 
+        }
+
+        .log-box { 
+            margin-top: 30px; 
+            width: 80%;
+            height: 150px;
+            overflow-y: auto;
+            border-top: 1px dashed #333;
+            padding-top: 10px;
+            color: #aaa; 
+            font-size: 0.8rem; 
+            text-align: left;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: 1px solid #333;
+            color: #555;
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="settings-btn" onclick="resetKeys()">RESET KEYS</button>
+
+    <div id="status">SYSTEM ONLINE</div>
+    
+    <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
+    
+    <div class="log-box" id="logOutput">
+        > Awaiting voice input...<br>
+        > Tap REC to begin.
+    </div>
+
+    <script type="module">
+      import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+      // --- SECURITY PROTOCOL ---
+      // This checks if keys are saved. If not, it asks you.
+      function getSecureKey(keyName) {
+        let key = localStorage.getItem(keyName);
+        if (!key) {
+            key = prompt(`ENTER ${keyName}:`);
+            if (key) localStorage.setItem(keyName, key);
+        }
+        return key;
+      }
+
+      window.resetKeys = function() {
+        localStorage.clear();
+        alert("KEYS CLEARED. REFRESH TO RE-ENTER.");
+        location.reload();
+      };
+      // -------------------------
+
+      const output = document.getElementById('logOutput');
+      const status = document.getElementById('status');
+      const recBtn = document.getElementById('recBtn');
+
+      function log(msg) {
+        output.innerHTML = `> ${msg}<br>` + output.innerHTML;
+      }
+
+      window.startSequence = async function() {
+        // Retrieve keys on demand
+        const GEMINI_API_KEY = getSecureKey("GEMINI_API_KEY");
+        const SCRIPT_URL = getSecureKey("GOOGLE_SCRIPT_URL");
+
+        if (!GEMINI_API_KEY || !SCRIPT_URL) {
+            log("ERROR: MISSING KEYS.");
+            return;
+        }
+
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = () => { 
+            status.innerText = "LISTENING..."; 
+            recBtn.classList.add("active");
+        };
+        
+        recognition.onend = () => {
+            recBtn.classList.remove("active");
+        };
+
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            status.innerText = "ANALYZING...";
+            log(`Input: "${transcript}"`);
+            
+            // Send to Gemini
+            await processIntent(genAI, SCRIPT_URL, transcript);
+        };
+        
+        recognition.start();
+      };
+
+      async function processIntent(genAI, scriptUrl, text) {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+        
+        // Contextual Awareness
+        const now = new Date();
+        const prompt = `
+          You are a data parser.
+          Current Date/Time: ${now.toString()}
+          
+          TASK: Extract "item", "date" (YYYY-MM-DD), and "time" (HH:mm) from: "${text}".
+          RULES:
+          1. If no date mentioned, use today.
+          2. If no time mentioned, use "00:00".
+          3. Convert relative dates (e.g. "next Friday") to actual dates.
+          4. RETURN ONLY JSON. No markdown formatting.
+          
+          Example Output: {"item": "Buy Servo", "date": "2024-02-20", "time": "14:00"}
+        `;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+            
+            // Clean JSON
+            const jsonStr = responseText.replace(/```json|```/g, '').trim(); 
+            const payload = JSON.parse(jsonStr);
+
+            status.innerText = "UPLOADING...";
+            
+            // Send to Google Sheets
+            await fetch(scriptUrl, {
+                method: "POST",
+                mode: "no-cors", 
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            status.innerText = "DATA SECURED";
+            log(`SAVED: ${payload.item} @ ${payload.date}`);
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "ERROR";
+            log(`Fail: ${error.message}`);
+        }
+      }
+    </script>
+</body>
+</html>
