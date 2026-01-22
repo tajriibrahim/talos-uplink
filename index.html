@@ -123,7 +123,8 @@
       };
 
       async function processIntent(genAI, scriptUrl, text) {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+          // Switching to the "Classic" Stable Model
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         // Contextual Awareness
         const now = new Date();
         const prompt = `
