@@ -126,19 +126,23 @@
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         // Contextual Awareness
         const now = new Date();
+
+        // --- UPDATED VERBATIM PROTOCOL ---
         const prompt = `
-          You are a data parser.
+          You are a smart recorder.
           Current Date/Time: ${now.toString()}
           
-          TASK: Extract "item", "date" (YYYY-MM-DD), and "time" (HH:mm) from: "${text}".
-          RULES:
-          1. If no date mentioned, use today.
-          2. If no time mentioned, use "00:00".
-          3. Convert relative dates (e.g. "next Friday") to actual dates.
-          4. RETURN ONLY JSON. No markdown formatting.
+          TASK: Analyze the text: "${text}"
           
-          Example Output: {"item": "Meeting", "date": "2024-02-20", "time": "14:00"}
+          OUTPUT INSTRUCTIONS:
+          1. "item": Return the EXACT full input text. Do not summarize or cut anything.
+          2. "date": Extract any specific date mentioned (YYYY-MM-DD). If none, use today's date: ${now.toISOString().split('T')[0]}.
+          3. "time": Extract any specific time mentioned (HH:mm). If none, use "00:00".
+          
+          RETURN ONLY RAW JSON. No markdown.
         `;
+        // ---------------------------------
+          
 
         try {
             const result = await model.generateContent(prompt);
