@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>T.A.L.O.S. UPLINK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T.A.L.O.S. UPLINK</title>
     <style>
         /* T.A.L.O.S. VISUAL SYSTEM - STARK TECH MODE */
         body { 
@@ -19,7 +20,6 @@
             text-transform: uppercase;
         }
 
-        /* HUD ELEMENTS */
         #status { 
             font-size: 1.2rem; 
             margin-bottom: 30px; 
@@ -28,6 +28,7 @@
             background: rgba(0, 240, 255, 0.1);
             box-shadow: 0 0 10px #00f0ff;
             letter-spacing: 2px;
+            font-weight: bold;
         }
 
         .record-btn {
@@ -37,7 +38,7 @@
             background: transparent;
             border: 3px solid #ff0055; 
             color: #ff0055; 
-            font-size: 1.2rem; 
+            font-size: 1.5rem; 
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 0 20px #ff0055, inset 0 0 20px #ff0055; 
@@ -55,7 +56,7 @@
 
         .log-box { 
             margin-top: 30px; 
-            width: 80%;
+            width: 85%;
             height: 150px;
             overflow-y: auto;
             border-top: 1px dashed #333;
@@ -63,54 +64,28 @@
             color: #aaa; 
             font-size: 0.8rem; 
             text-align: left;
-        }
-
-        .settings-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: 1px solid #333;
-            color: #555;
-            padding: 5px 10px;
-            font-size: 0.7rem;
-            cursor: pointer;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
-
-    <button class="settings-btn" onclick="resetKeys()">RESET KEYS</button>
 
     <div id="status">SYSTEM ONLINE</div>
     
     <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
     
     <div class="log-box" id="logOutput">
-        > Awaiting voice input...<br>
-        > Tap REC to begin.
+        > Credentials Loaded.<br>
+        > Tap REC to transmit...
     </div>
 
     <script type="module">
       import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-      // --- SECURITY PROTOCOL ---
-      // This checks if keys are saved. If not, it asks you.
-      function getSecureKey(keyName) {
-        let key = localStorage.getItem(keyName);
-        if (!key) {
-            key = prompt(`ENTER ${keyName}:`);
-            if (key) localStorage.setItem(keyName, key);
-        }
-        return key;
-      }
-
-      window.resetKeys = function() {
-        localStorage.clear();
-        alert("KEYS CLEARED. REFRESH TO RE-ENTER.");
-        location.reload();
-      };
-      // -------------------------
+      // --- COMMANDER CREDENTIALS (INTEGRATED) ---
+      const GEMINI_API_KEY = "AIzaSyBQyaM00QeZqKXPNm6OgphUInNBk9Uzm14"; 
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq2ckVg417ZxYg8uld5OHsNeuhe9ezv03G6lcg8NqCfEpd1hzaVMIi7NPRkUp5DM4-mw/exec";
+      // ------------------------------------------
 
       const output = document.getElementById('logOutput');
       const status = document.getElementById('status');
@@ -121,15 +96,6 @@
       }
 
       window.startSequence = async function() {
-        // Retrieve keys on demand
-        const GEMINI_API_KEY = getSecureKey("GEMINI_API_KEY");
-        const SCRIPT_URL = getSecureKey("GOOGLE_SCRIPT_URL");
-
-        if (!GEMINI_API_KEY || !SCRIPT_URL) {
-            log("ERROR: MISSING KEYS.");
-            return;
-        }
-
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         
@@ -172,7 +138,7 @@
           3. Convert relative dates (e.g. "next Friday") to actual dates.
           4. RETURN ONLY JSON. No markdown formatting.
           
-          Example Output: {"item": "Buy Servo", "date": "2024-02-20", "time": "14:00"}
+          Example Output: {"item": "Meeting", "date": "2024-02-20", "time": "14:00"}
         `;
 
         try {
@@ -194,7 +160,7 @@
             });
 
             status.innerText = "DATA SECURED";
-            log(`SAVED: ${payload.item} @ ${payload.date}`);
+            log(`SAVED: ${payload.item} [${payload.date}]`);
 
         } catch (error) {
             console.error(error);
