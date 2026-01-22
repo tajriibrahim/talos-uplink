@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S. NETWORK PATCH</title>
+    <title>T.A.L.O.S. JSONP</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
-    
-    <meta name="referrer" content="no-referrer">
     
     <style>
         body { 
@@ -30,7 +28,7 @@
         }
         .nav-btn.active { border-color: #ff9900; color: #ff9900; background: rgba(255,153,0,0.1); }
 
-        /* MAIN LAYOUT */
+        /* LAYOUT */
         .view-section { display: none; flex-grow: 1; width: 100%; flex-direction: column; }
         .view-section.active { display: flex; }
 
@@ -85,8 +83,10 @@
     </div>
 
     <script>
+      // --- UPDATE YOUR SCRIPT URL HERE ---
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq2ckVg417ZxYg8uld5OHsNeuhe9ezv03G6lcg8NqCfEpd1hzaVMIi7NPRkUp5DM4-mw/exec";
-      
+      // -----------------------------------
+
       const localLog = document.getElementById('localLog');
       const serverDataList = document.getElementById('serverDataList');
       const recBtn = document.getElementById('recBtn');
@@ -100,44 +100,48 @@
         event.target.classList.add('active');
         document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
         document.getElementById('view-' + viewName).classList.add('active');
-        if(viewName === 'data') fetchLogs();
+        if(viewName === 'data') fetchLogsJSONP();
       }
 
-      async function fetchLogs() {
-        serverDataList.innerHTML = '<div class="loading">ESTABLISHING UPLINK...</div>';
-        try {
-            // FIX: Add timestamp to force fresh connection
-            const cacheBuster = "?t=" + new Date().getTime();
-            
-            const response = await fetch(SCRIPT_URL + cacheBuster, {
-                method: "GET",
-                redirect: "follow" // Explicitly follow the Google redirect
-            });
-            
-            if (!response.ok) throw new Error("Status: " + response.status);
-            
-            const data = await response.json();
-            
-            if (data.length === 0) {
-                 serverDataList.innerHTML = '<div class="loading">NO LOGS FOUND</div>';
-                 return;
-            }
+      // --- THE NEW "NUCLEAR" JSONP FETCH METHOD ---
+      function fetchLogsJSONP() {
+        serverDataList.innerHTML = '<div class="loading">ESTABLISHING SECURE CHANNEL...</div>';
+        
+        // 1. Create a temporary function name
+        const callbackName = 'talos_' + Date.now();
+        
+        // 2. Define what happens when data arrives
+        window[callbackName] = function(data) {
+            displayLogs(data);
+            delete window[callbackName]; // Cleanup
+            document.body.removeChild(script); // Cleanup
+        };
 
-            let html = "";
-            data.forEach(row => {
-                html += `
-                <div class="server-entry">
-                    <div class="server-date">${row.date} | ${row.time}</div>
-                    <div class="server-item">${row.item}</div>
-                </div>`;
-            });
-            serverDataList.innerHTML = html;
+        // 3. Inject a script tag (This bypasses CORS blocks)
+        const script = document.createElement('script');
+        script.src = SCRIPT_URL + '?callback=' + callbackName + '&action=read';
+        script.onerror = () => {
+             serverDataList.innerHTML = '<div class="loading" style="color:red">CONNECTION FAILED<br>Check Script Deployment</div>';
+        };
+        document.body.appendChild(script);
+      }
 
-        } catch (e) {
-            console.error(e);
-            serverDataList.innerHTML = `<div class="loading" style="color:red">CONNECTION FAIL<br><small>${e.message}</small></div>`;
+      function displayLogs(data) {
+        if (data.length === 0) {
+             serverDataList.innerHTML = '<div class="loading">NO LOGS FOUND</div>';
+             return;
         }
+        let html = "";
+        data.forEach(row => {
+            html += `
+            <div class="server-entry">
+                <div class="server-date">${row.date} | ${row.time}</div>
+                <div class="server-item">${row.item}</div>
+            </div>`;
+        });
+        serverDataList.innerHTML = html;
       }
+      // --------------------------------------------
 
       // VOICE INPUT
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
