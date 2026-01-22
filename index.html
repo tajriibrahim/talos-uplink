@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S. FINAL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>T.A.L.O.S. MOBILE</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     
@@ -16,7 +15,7 @@
             text-transform: uppercase;
         }
 
-        /* NAVIGATION */
+        /* PHONE OPTIMIZED NAV */
         .nav-bar {
             display: flex; width: 100%; justify-content: space-around;
             padding: 15px 0; background: #000; border-bottom: 1px solid #333;
@@ -24,36 +23,32 @@
         }
         .nav-btn {
             background: none; border: 1px solid #333; color: #555;
-            padding: 10px 30px; font-weight: bold; cursor: pointer;
+            padding: 10px 20px; font-weight: bold; cursor: pointer;
+            font-size: 1rem; /* Bigger for touch */
         }
         .nav-btn.active { border-color: #ff9900; color: #ff9900; background: rgba(255,153,0,0.1); }
 
-        /* MAIN LAYOUT */
         .view-section { display: none; flex-grow: 1; width: 100%; flex-direction: column; }
         .view-section.active { display: flex; }
 
-        /* INPUT AREA */
-        .input-container {
-            flex-grow: 1; display: flex; align-items: center; justify-content: center;
-        }
+        .input-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; }
+        
         .record-btn {
-            width: 150px; height: 150px; border-radius: 50%; background: transparent;
-            border: 5px solid #ff9900; color: #ff9900; font-size: 1.5rem; font-weight: bold;
-            cursor: pointer; box-shadow: 0 0 25px #ff9900; transition: 0.2s;
+            width: 160px; height: 160px; border-radius: 50%; background: transparent;
+            border: 6px solid #ff9900; color: #ff9900; font-size: 1.5rem; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 30px #ff9900; transition: 0.2s;
+            -webkit-tap-highlight-color: transparent; /* Removes blue tap box on Android */
         }
         .record-btn:active, .record-btn.active { background: #ff9900; color: #000; }
 
-        /* LOG TERMINAL */
         .log-terminal { 
             width: 100%; height: 40%; 
             background: #000; border-top: 2px solid #333;
             padding: 20px; box-sizing: border-box;
-            color: #888; font-size: 0.85rem; 
+            color: #888; font-size: 0.8rem; 
             overflow-y: auto; text-align: left; line-height: 1.6;
         }
-        .log-entry { margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; }
 
-        /* DATA LIST */
         .data-list { width: 100%; height: 100%; overflow-y: auto; padding: 10px; box-sizing: border-box;}
         .server-entry { border: 1px solid #333; padding: 15px; margin-bottom: 10px; background: #050505; }
         .server-date { color: #555; font-size: 0.8rem; margin-bottom: 5px; }
@@ -73,8 +68,8 @@
             <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
         </div>
         <div class="log-terminal" id="localLog">
-            <div class="log-entry">> SYSTEM READY.</div>
-            <div class="log-entry">> CHANNEL: SECURE.</div>
+            <div>> SYSTEM READY.</div>
+            <div>> MOBILE UPLINK ACTIVE.</div>
         </div>
     </div>
 
@@ -83,16 +78,15 @@
     </div>
 
     <script>
-      // --- THE NEW CORRECT URL ---
+      // CORRECT URL (Do not change this)
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqEh1q7PJPsmYsn_Ng_h5PbmMVqaDfm9XKzfJr0ge33V0UYd0iD_ZwxvCQmKDnLzKEmw/exec";
-      // ---------------------------
-
+      
       const localLog = document.getElementById('localLog');
       const serverDataList = document.getElementById('serverDataList');
       const recBtn = document.getElementById('recBtn');
 
       function log(msg) {
-        localLog.innerHTML = `<div class="log-entry">> ${msg}</div>` + localLog.innerHTML;
+        localLog.innerHTML = `<div>> ${msg}</div>` + localLog.innerHTML;
       }
 
       function switchView(viewName) {
@@ -103,31 +97,25 @@
         if(viewName === 'data') fetchLogsJSONP();
       }
 
-      // --- JSONP FETCH LOGIC ---
+      // --- THE FIX FOR THE "Unexpected Token" ERROR ---
       function fetchLogsJSONP() {
-        serverDataList.innerHTML = '<div class="loading">ESTABLISHING UPLINK...</div>';
+        serverDataList.innerHTML = '<div class="loading">DOWNLOADING DATA...</div>';
         
-        // Create unique callback name
-        const callbackName = 'talos_' + Date.now();
-        
-        // Define handling function
+        // 1. Create a function specifically to catch the incoming data
+        const callbackName = 'talos_cb_' + Date.now();
         window[callbackName] = function(data) {
             displayLogs(data);
-            // Cleanup
-            delete window[callbackName];
-            const oldScript = document.getElementById(callbackName);
-            if(oldScript) oldScript.remove();
+            delete window[callbackName]; // Clean up
+            document.getElementById(callbackName).remove(); // Clean up
         };
 
-        // Create script tag
+        // 2. Inject the script (This forces the browser to run the response as code)
         const script = document.createElement('script');
         script.id = callbackName;
         script.src = SCRIPT_URL + '?callback=' + callbackName + '&action=read&t=' + Date.now();
-        
         script.onerror = () => {
-             serverDataList.innerHTML = '<div class="loading" style="color:red">CONNECTION FAILED<br>1. Check "New Version" Deployment<br>2. Verify URL</div>';
+             serverDataList.innerHTML = '<div class="loading" style="color:red">CONNECTION FAILED</div>';
         };
-        
         document.body.appendChild(script);
       }
 
@@ -147,11 +135,11 @@
         serverDataList.innerHTML = html;
       }
 
-      // VOICE INPUT
+      // --- VOICE INPUT ---
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       window.startSequence = function() {
-        if (!SpeechRecognition) { log("Mic Not Supported"); return; }
+        if (!SpeechRecognition) { log("Mic Not Supported on this Browser."); return; }
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.continuous = false;
