@@ -123,7 +123,7 @@
       };
 
       async function processIntent(genAI, scriptUrl, text) {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
         // Contextual Awareness
         const now = new Date();
         const prompt = `
