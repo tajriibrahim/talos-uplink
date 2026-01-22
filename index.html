@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S. REBOOT</title>
+    <title>T.A.L.O.S. FINAL</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     
@@ -28,7 +28,7 @@
         }
         .nav-btn.active { border-color: #ff9900; color: #ff9900; background: rgba(255,153,0,0.1); }
 
-        /* LAYOUT */
+        /* MAIN LAYOUT */
         .view-section { display: none; flex-grow: 1; width: 100%; flex-direction: column; }
         .view-section.active { display: flex; }
 
@@ -74,7 +74,7 @@
         </div>
         <div class="log-terminal" id="localLog">
             <div class="log-entry">> SYSTEM READY.</div>
-            <div class="log-entry">> TARGET: NEW UPLINK.</div>
+            <div class="log-entry">> CHANNEL: SECURE.</div>
         </div>
     </div>
 
@@ -83,9 +83,9 @@
     </div>
 
     <script>
-      // --- THE NEW URL YOU PROVIDED ---
+      // --- THE NEW CORRECT URL ---
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqEh1q7PJPsmYsn_Ng_h5PbmMVqaDfm9XKzfJr0ge33V0UYd0iD_ZwxvCQmKDnLzKEmw/exec";
-      // --------------------------------
+      // ---------------------------
 
       const localLog = document.getElementById('localLog');
       const serverDataList = document.getElementById('serverDataList');
@@ -100,42 +100,51 @@
         event.target.classList.add('active');
         document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
         document.getElementById('view-' + viewName).classList.add('active');
-        if(viewName === 'data') fetchLogs();
+        if(viewName === 'data') fetchLogsJSONP();
       }
 
-      // --- STANDARD FETCH (THE "OLD" WAY) ---
-      async function fetchLogs() {
-        serverDataList.innerHTML = '<div class="loading">CONNECTING...</div>';
-        try {
-            // Using standard fetch with redirect: 'follow'
-            const response = await fetch(SCRIPT_URL, {
-                method: "GET",
-                redirect: "follow"
-            });
-            
-            if (!response.ok) throw new Error("Status: " + response.status);
-            
-            const data = await response.json();
-            
-            if (data.length === 0) {
-                 serverDataList.innerHTML = '<div class="loading">NO LOGS FOUND</div>';
-                 return;
-            }
+      // --- JSONP FETCH LOGIC ---
+      function fetchLogsJSONP() {
+        serverDataList.innerHTML = '<div class="loading">ESTABLISHING UPLINK...</div>';
+        
+        // Create unique callback name
+        const callbackName = 'talos_' + Date.now();
+        
+        // Define handling function
+        window[callbackName] = function(data) {
+            displayLogs(data);
+            // Cleanup
+            delete window[callbackName];
+            const oldScript = document.getElementById(callbackName);
+            if(oldScript) oldScript.remove();
+        };
 
-            let html = "";
-            data.forEach(row => {
-                html += `
-                <div class="server-entry">
-                    <div class="server-date">${row.date} | ${row.time}</div>
-                    <div class="server-item">${row.item}</div>
-                </div>`;
-            });
-            serverDataList.innerHTML = html;
+        // Create script tag
+        const script = document.createElement('script');
+        script.id = callbackName;
+        script.src = SCRIPT_URL + '?callback=' + callbackName + '&action=read&t=' + Date.now();
+        
+        script.onerror = () => {
+             serverDataList.innerHTML = '<div class="loading" style="color:red">CONNECTION FAILED<br>1. Check "New Version" Deployment<br>2. Verify URL</div>';
+        };
+        
+        document.body.appendChild(script);
+      }
 
-        } catch (e) {
-            console.error(e);
-            serverDataList.innerHTML = `<div class="loading" style="color:red">CONNECTION FAIL<br><small>${e.message}</small></div>`;
+      function displayLogs(data) {
+        if (!data || data.length === 0) {
+             serverDataList.innerHTML = '<div class="loading">NO LOGS FOUND</div>';
+             return;
         }
+        let html = "";
+        data.forEach(row => {
+            html += `
+            <div class="server-entry">
+                <div class="server-date">${row.date} | ${row.time}</div>
+                <div class="server-item">${row.item}</div>
+            </div>`;
+        });
+        serverDataList.innerHTML = html;
       }
 
       // VOICE INPUT
