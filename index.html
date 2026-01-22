@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S. UPLINK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>T.A.L.O.S. DIRECT UPLINK</title>
     <style>
-        /* T.A.L.O.S. VISUAL SYSTEM - STARK TECH MODE */
+        /* T.A.L.O.S. VISUAL SYSTEM - MANUAL MODE */
         body { 
-            background-color: #000000; 
-            color: #00f0ff; 
+            background-color: #0d0d0d; 
+            color: #ff9900; /* Amber for Manual/Warning Mode */
             font-family: 'Courier New', monospace; 
             display: flex; 
             flex-direction: column; 
@@ -23,10 +22,10 @@
         #status { 
             font-size: 1.2rem; 
             margin-bottom: 30px; 
-            border: 1px solid #00f0ff; 
+            border: 1px solid #ff9900; 
             padding: 10px 20px; 
-            background: rgba(0, 240, 255, 0.1);
-            box-shadow: 0 0 10px #00f0ff;
+            background: rgba(255, 153, 0, 0.1);
+            box-shadow: 0 0 15px rgba(255, 153, 0, 0.4);
             letter-spacing: 2px;
             font-weight: bold;
         }
@@ -36,12 +35,12 @@
             height: 140px; 
             border-radius: 50%; 
             background: transparent;
-            border: 3px solid #ff0055; 
-            color: #ff0055; 
+            border: 4px solid #ff9900; 
+            color: #ff9900; 
             font-size: 1.5rem; 
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 0 20px #ff0055, inset 0 0 20px #ff0055; 
+            box-shadow: 0 0 20px #ff9900, inset 0 0 10px #ff9900; 
             transition: all 0.2s;
             display: flex;
             align-items: center;
@@ -49,128 +48,28 @@
         }
 
         .record-btn:active, .record-btn.active { 
-            background: #ff0055; 
+            background: #ff9900; 
             color: #000; 
-            box-shadow: 0 0 50px #ff0055; 
+            box-shadow: 0 0 50px #ff9900; 
+            transform: scale(0.95);
         }
 
         .log-box { 
-            margin-top: 30px; 
+            margin-top: 40px; 
             width: 85%;
             height: 150px;
             overflow-y: auto;
-            border-top: 1px dashed #333;
+            border-top: 1px dashed #444;
             padding-top: 10px;
-            color: #aaa; 
-            font-size: 0.8rem; 
+            color: #888; 
+            font-size: 0.85rem; 
             text-align: left;
-            line-height: 1.4;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
 
-    <div id="status">SYSTEM ONLINE</div>
+    <div id="status">MANUAL MODE</div>
     
     <button class="record-btn" id="recBtn" onclick="startSequence()">REC</button>
-    
-    <div class="log-box" id="logOutput">
-        > Credentials Loaded.<br>
-        > Tap REC to transmit...
-    </div>
-
-    <script type="module">
-      import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
-
-      // --- COMMANDER CREDENTIALS (INTEGRATED) ---
-      const GEMINI_API_KEY = "AIzaSyBQyaM00QeZqKXPNm6OgphUInNBk9Uzm14"; 
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqEh1q7PJPsmYsn_Ng_h5PbmMVqaDfm9XKzfJr0ge33V0UYd0iD_ZwxvCQmKDnLzKEmw/exec";
-      // ------------------------------------------
-      const output = document.getElementById('logOutput');
-      const status = document.getElementById('status');
-      const recBtn = document.getElementById('recBtn');
-
-      function log(msg) {
-        output.innerHTML = `> ${msg}<br>` + output.innerHTML;
-      }
-
-      window.startSequence = async function() {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        
-        recognition.lang = 'en-US';
-        
-        recognition.onstart = () => { 
-            status.innerText = "LISTENING..."; 
-            recBtn.classList.add("active");
-        };
-        
-        recognition.onend = () => {
-            recBtn.classList.remove("active");
-        };
-
-        recognition.onresult = async (event) => {
-            const transcript = event.results[0][0].transcript;
-            status.innerText = "ANALYZING...";
-            log(`Input: "${transcript}"`);
-            
-            // Send to Gemini
-            await processIntent(genAI, SCRIPT_URL, transcript);
-        };
-        
-        recognition.start();
-      };
-
-      async function processIntent(genAI, scriptUrl, text) {
-          // Switching to the "Classic" Stable Model
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        // Contextual Awareness
-        const now = new Date();
-
-        // --- UPDATED VERBATIM PROTOCOL ---
-        const prompt = `
-          You are a smart recorder.
-          Current Date/Time: ${now.toString()}
-          
-          TASK: Analyze the text: "${text}"
-          
-          OUTPUT INSTRUCTIONS:
-          1. "item": Return the EXACT full input text. Do not summarize or cut anything.
-          2. "date": Extract any specific date mentioned (YYYY-MM-DD). If none, use today's date: ${now.toISOString().split('T')[0]}.
-          3. "time": Extract any specific time mentioned (HH:mm). If none, use "00:00".
-          
-          RETURN ONLY RAW JSON. No markdown.
-        `;
-        // ---------------------------------
-          
-
-        try {
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
-            
-            // Clean JSON
-            const jsonStr = responseText.replace(/```json|```/g, '').trim(); 
-            const payload = JSON.parse(jsonStr);
-
-            status.innerText = "UPLOADING...";
-            
-            // Send to Google Sheets
-            await fetch(scriptUrl, {
-                method: "POST",
-                mode: "no-cors", 
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            status.innerText = "DATA SECURED";
-            log(`SAVED: ${payload.item} [${payload.date}]`);
-
-        } catch (error) {
-            console.error(error);
-            status.innerText = "ERROR";
-            log(`Fail: ${error.message}`);
-        }
-      }
-    </script>
-</body>
-</html>
