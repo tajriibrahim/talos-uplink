@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T.A.L.O.S. STABLE</title>
+    <title>T.A.L.O.S. NETWORK PATCH</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
+    
+    <meta name="referrer" content="no-referrer">
     
     <style>
         body { 
@@ -43,10 +45,9 @@
         }
         .record-btn:active, .record-btn.active { background: #ff9900; color: #000; }
 
-        /* LOG TERMINAL (TALLER) */
+        /* LOG TERMINAL */
         .log-terminal { 
-            width: 100%; 
-            height: 40%; 
+            width: 100%; height: 40%; 
             background: #000; border-top: 2px solid #333;
             padding: 20px; box-sizing: border-box;
             color: #888; font-size: 0.85rem; 
@@ -60,7 +61,6 @@
         .server-date { color: #555; font-size: 0.8rem; margin-bottom: 5px; }
         .server-item { color: #ff9900; font-size: 1.1rem; }
         .loading { text-align: center; color: #444; margin-top: 50px; }
-
     </style>
 </head>
 <body>
@@ -85,7 +85,6 @@
     </div>
 
     <script>
-      // YOUR URL IS HARDCODED HERE
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq2ckVg417ZxYg8uld5OHsNeuhe9ezv03G6lcg8NqCfEpd1hzaVMIi7NPRkUp5DM4-mw/exec";
       
       const localLog = document.getElementById('localLog');
@@ -105,11 +104,17 @@
       }
 
       async function fetchLogs() {
-        serverDataList.innerHTML = '<div class="loading">CONNECTING...</div>';
+        serverDataList.innerHTML = '<div class="loading">ESTABLISHING UPLINK...</div>';
         try {
-            const response = await fetch(SCRIPT_URL);
+            // FIX: Add timestamp to force fresh connection
+            const cacheBuster = "?t=" + new Date().getTime();
             
-            if (!response.ok) throw new Error("Server Status: " + response.status);
+            const response = await fetch(SCRIPT_URL + cacheBuster, {
+                method: "GET",
+                redirect: "follow" // Explicitly follow the Google redirect
+            });
+            
+            if (!response.ok) throw new Error("Status: " + response.status);
             
             const data = await response.json();
             
@@ -130,7 +135,7 @@
 
         } catch (e) {
             console.error(e);
-            serverDataList.innerHTML = `<div class="loading" style="color:red">CONNECTION FAILED<br><small>${e.message}</small></div>`;
+            serverDataList.innerHTML = `<div class="loading" style="color:red">CONNECTION FAIL<br><small>${e.message}</small></div>`;
         }
       }
 
